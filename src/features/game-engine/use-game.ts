@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import {
   createEngine,
   launchBall,
@@ -7,98 +7,58 @@ import {
   nextLevel,
   resetGame,
   toggleSound,
-  getWordsRemaining,
-  getActivePowerUps,
   type GameEngine,
 } from './engine';
 import { render } from './renderer';
-import { GAME_WIDTH, GAME_HEIGHT } from '@/shared/config/constants';
-import type { GameState } from '@/shared/types';
+import { useGameStore } from './store';
+import { GAME_WIDTH } from '@/shared/config/constants';
 
-export interface UseGameReturn {
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  gameState: GameState;
-  wordsRemaining: number;
-  activePowerUps: string[];
-  onToggleSound: () => void;
-}
-
-export function useGame(): UseGameReturn {
+export function useGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const animFrameRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
-  const [gameState, setGameState] = useState<GameState>({
-    score: 0,
-    lives: 3,
-    level: 1,
-    isRunning: false,
-    isStarted: false,
-    isGameOver: false,
-    isLevelComplete: false,
-    soundEnabled: false,
-  });
-  const [wordsRemaining, setWordsRemaining] = useState(16);
-  const [activePowerUps, setActivePowerUps] = useState<string[]>([]);
-
-  const syncState = useCallback(() => {
-    const engine = engineRef.current;
-    if (!engine) return;
-    setGameState({ ...engine.state });
-    setWordsRemaining(getWordsRemaining(engine));
-    setActivePowerUps(getActivePowerUps(engine));
-  }, []);
+  const sync = useGameStore((s) => s.sync);
 
   const handleAction = useCallback(() => {
     const engine = engineRef.current;
     if (!engine) return;
-
-    if (engine.state.isGameOver) {
-      resetGame(engine);
-      syncState();
-    } else if (engine.state.isLevelComplete) {
-      nextLevel(engine);
-      syncState();
-    } else if (!engine.state.isStarted) {
-      launchBall(engine);
-      syncState();
-    }
-  }, [syncState]);
+    if (engine.state.isGameOver) resetGame(engine);
+    else if (engine.state.isLevelComplete) nextLevel(engine);
+    else if (!engine.state.isStarted) launchBall(engine);
+    sync(engine);
+  }, [sync]);
 
   const handlePointerMove = useCallback((clientX: number) => {
     const engine = engineRef.current;
     const canvas = canvasRef.current;
     if (!engine || !canvas) return;
-
     const rect = canvas.getBoundingClientRect();
-    const scaleX = GAME_WIDTH / rect.width;
-    const x = (clientX - rect.left) * scaleX;
-    setPaddleTarget(engine, x);
+    setPaddleTarget(engine, (clientX - rect.left) * (GAME_WIDTH / rect.width));
   }, []);
 
   useEffect(() => {
     const engine = createEngine();
     engineRef.current = engine;
-    syncState();
+    sync(engine);
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Game loop (sync React state every 4th frame to reduce re-renders)
-    let frameCount = 0;
+    // Game loop — sync store every 4th frame
+    let frame = 0;
     const loop = (time: number) => {
       if (!lastTimeRef.current) lastTimeRef.current = time;
-      const dt = Math.min(time - lastTimeRef.current, 32);
+      const rawDt = Math.min(time - lastTimeRef.current, 32);
       lastTimeRef.current = time;
 
+      const dt = rawDt * useGameStore.getState().gameSpeed;
       update(engine, dt);
       render(ctx, engine);
-
-      if (++frameCount % 4 === 0) syncState();
+      if (++frame % 4 === 0) sync(engine);
 
       animFrameRef.current = requestAnimationFrame(loop);
     };
@@ -106,9 +66,8 @@ export function useGame(): UseGameReturn {
 
     // Mouse
     const onMouseMove = (e: MouseEvent) => handlePointerMove(e.clientX);
-    const onClick = () => handleAction();
     canvas.addEventListener('mousemove', onMouseMove);
-    canvas.addEventListener('click', onClick);
+    canvas.addEventListener('click', handleAction);
 
     // Touch
     const onTouchMove = (e: TouchEvent) => {
@@ -127,22 +86,12 @@ export function useGame(): UseGameReturn {
     const keysDown = new Set<string>();
     const onKeyDown = (e: KeyboardEvent) => {
       keysDown.add(e.key);
-
-      if (e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w') {
-        handleAction();
-      }
-      if (e.key === 'm' || e.key === 'M') {
-        toggleSound(engine);
-        syncState();
-      }
+      if (e.key === 'ArrowUp' || e.key === ' ' || e.key === 'w') handleAction();
+      if (e.key === 'm' || e.key === 'M') { toggleSound(engine); sync(engine); }
     };
-    const onKeyUp = (e: KeyboardEvent) => {
-      keysDown.delete(e.key);
-    };
+    const onKeyUp = (e: KeyboardEvent) => keysDown.delete(e.key);
 
-    // Keyboard paddle movement
     const keyboardInterval = setInterval(() => {
-      if (!engine) return;
       const speed = 12;
       if (keysDown.has('ArrowLeft') || keysDown.has('a') || keysDown.has('A')) {
         engine.paddleTargetX -= speed;
@@ -154,33 +103,25 @@ export function useGame(): UseGameReturn {
       }
     }, 16);
 
+    // Sound toggle from HUD button
+    const onToggleSound = () => { toggleSound(engine); sync(engine); };
+    window.addEventListener('toggle-sound', onToggleSound);
+
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
     return () => {
       cancelAnimationFrame(animFrameRef.current);
       clearInterval(keyboardInterval);
+      window.removeEventListener('toggle-sound', onToggleSound);
       canvas.removeEventListener('mousemove', onMouseMove);
-      canvas.removeEventListener('click', onClick);
+      canvas.removeEventListener('click', handleAction);
       canvas.removeEventListener('touchmove', onTouchMove);
       canvas.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, [handleAction, handlePointerMove, syncState]);
+  }, [handleAction, handlePointerMove, sync]);
 
-  const onToggleSound = useCallback(() => {
-    if (engineRef.current) {
-      toggleSound(engineRef.current);
-      syncState();
-    }
-  }, [syncState]);
-
-  return {
-    canvasRef,
-    gameState,
-    wordsRemaining,
-    activePowerUps,
-    onToggleSound,
-  };
+  return { canvasRef };
 }

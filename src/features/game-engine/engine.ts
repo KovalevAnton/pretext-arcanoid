@@ -23,27 +23,55 @@ import {
   POWER_WORDS,
   POWERUP_WIDEN_DURATION,
   POWERUP_MULTIBALL_COUNT,
-  BALL_REPULSION_RADIUS,
-  BALL_REPULSION_STRENGTH,
-  WORD_REPULSION_PADDING,
-  WORD_REPULSION_STRENGTH,
-  BG_WORD_RETURN_SPEED,
-  BACKGROUND_WORDS,
+  TEXT_WALL_FONT,
+  WAKE_SPAWN_DISTANCE,
+  WAKE_HOLE_RADIUS,
+  WAKE_HOLE_MAX_LIFE,
+  BG_GLYPH_COUNT,
+  BG_GLYPH_CHARS,
   type PowerWordType,
 } from '@/shared/config/constants';
+import { measureWidth } from '@/shared/lib/text';
+import { prepareWithSegments, type PreparedTextWithSegments } from '@chenglou/pretext';
 import * as sound from '@/shared/lib/sound';
-import { prepare, layout } from '@chenglou/pretext';
 
-// ── Background word particle ────────────────────────────────────────────
+// ── Wake holes (temporary text wall gaps behind ball) ───────────────────
 
-export interface BgWord {
-  text: string;
-  homeX: number;
-  homeY: number;
+export interface WakeHole {
   x: number;
   y: number;
-  width: number;
-  height: number;
+  radius: number;
+  life: number;
+  maxLife: number;
+}
+
+// ── Background decorative glyphs ────────────────────────────────────────
+
+export interface BackgroundGlyph {
+  char: string;
+  x: number;
+  y: number;
+  alpha: number;
+  speed: number;
+}
+
+// ── Particles (letter burst from destroyed bricks) ─────────────────────
+
+export interface Particle {
+  char: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  alpha: number;
+  life: number;
+  maxLife: number;
+  rotation: number;
+  spin: number;
+  /** Radius of the gap this particle carves in the text wall. */
+  wallRadius: number;
+  fontSize: number;
 }
 
 // ── IDs ─────────────────────────────────────────────────────────────────
@@ -60,8 +88,11 @@ export interface GameEngine {
   paddle: Paddle;
   words: TargetWord[];
   powerWords: PowerWord[];
+  particles: Particle[];
   paddleTargetX: number;
-  bgWords: BgWord[];
+  wakeHoles: WakeHole[];
+  backgroundGlyphs: BackgroundGlyph[];
+  textWallPrepared: PreparedTextWithSegments;
 }
 
 // ── Factory helpers ─────────────────────────────────────────────────────
@@ -71,13 +102,11 @@ function createBall(x: number, y: number, angle?: number): Ball {
   return {
     id: nextBallId++,
     pos: { x, y },
-    vel: {
-      x: Math.cos(a) * BALL_SPEED,
-      y: Math.sin(a) * BALL_SPEED,
-    },
+    vel: { x: Math.cos(a) * BALL_SPEED, y: Math.sin(a) * BALL_SPEED },
     radius: BALL_RADIUS,
     trail: [],
     isActive: true,
+    wakePoint: null,
   };
 }
 
@@ -92,30 +121,13 @@ function createPaddle(): Paddle {
   };
 }
 
-// ── Measure helpers (uses pretext + canvas fallback) ────────────────────
+// ── Font strings ────────────────────────────────────────────────────────
 
-const _measureCanvas = document.createElement('canvas');
-const _measureCtx = _measureCanvas.getContext('2d')!;
-
-function measureWord(text: string, font: string): { width: number; height: number } {
-  try {
-    const prepared = prepare(text, font);
-    const result = layout(prepared, Infinity, parseFloat(font));
-    _measureCtx.font = font;
-    return { width: _measureCtx.measureText(text).width, height: result.height || parseFloat(font) };
-  } catch {
-    _measureCtx.font = font;
-    const m = _measureCtx.measureText(text);
-    return { width: m.width, height: parseFloat(font) };
-  }
+function targetFont(fontSize: number): string {
+  return `bold ${fontSize}px "Orbitron", "Share Tech Mono", monospace`;
 }
 
-function measureTargetWord(text: string, fontSize: number): number {
-  _measureCtx.font = `bold ${fontSize}px 'Orbitron', 'Share Tech Mono', monospace`;
-  return _measureCtx.measureText(text).width;
-}
-
-// ── Layout target words ─────────────────────────────────────────────────
+// ── Layout target words (all measurement via pretext) ───────────────────
 
 function layoutTargetWords(levelWords: string[]): TargetWord[] {
   const words: TargetWord[] = [];
@@ -124,7 +136,6 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
   const areaWidth = GAME_WIDTH - marginX * 2;
   const areaHeight = GAME_HEIGHT - 180;
 
-  // Arrange in rows matching the phrase structure: 5 / 7 / 4 for 16 words
   const rowCounts = levelWords.length === 16
     ? [5, 7, 4]
     : levelWords.length === 12
@@ -142,7 +153,7 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
     for (let col = 0; col < count && wordIdx < levelWords.length; col++) {
       const text = levelWords[wordIdx];
       const fontSize = text.length <= 3 ? 50 : text.length <= 5 ? 44 : text.length <= 7 ? 38 : 32;
-      const width = measureTargetWord(text, fontSize) + 20;
+      const width = measureWidth(text, targetFont(fontSize)) + 20;
 
       const x = marginX + col * cellWidth + cellWidth / 2 - width / 2;
       const y = marginY + row * rowHeight + rowHeight / 2 - fontSize / 2;
@@ -162,127 +173,121 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
   return words;
 }
 
-// ── Background word layout (per-word particles) ─────────────────────────
+// ── Text wall copy (prepared once) ──────────────────────────────────────
 
-function createBgWords(): BgWord[] {
-  const font = '11px "Share Tech Mono", monospace';
-  const lineHeight = 19;
-  const padding = BORDER_WIDTH + 6;
-  const areaWidth = GAME_WIDTH - padding * 2;
-  const words: BgWord[] = [];
-
-  let x = padding;
-  let y = padding;
-  let wordIdx = 0;
-
-  while (y < GAME_HEIGHT - padding) {
-    const text = BACKGROUND_WORDS[wordIdx % BACKGROUND_WORDS.length];
-    const m = measureWord(text, font);
-    const spaceWidth = 6;
-
-    if (x + m.width > GAME_WIDTH - padding) {
-      x = padding;
-      y += lineHeight;
-      if (y > GAME_HEIGHT - padding) break;
-    }
-
-    words.push({
-      text,
-      homeX: x,
-      homeY: y,
-      x,
-      y,
-      width: m.width,
-      height: lineHeight,
-    });
-
-    x += m.width + spaceWidth;
-    wordIdx++;
-  }
-
-  return words;
+function buildTextWallCopy(): string {
+  const phrases = [
+    'pretext layout measure cursor segment wrap glyph inline reflow stream bidi kern space split signal static dynamic vector module bounce trail track render flow',
+    'text snakes between every obstacle and keeps every word alive while the field recomposes around the moving ball and the waiting paddle',
+    'small copy fills the arena from border to border and the larger block labels stay readable as targets floating above the paragraph wall',
+  ];
+  return Array.from({ length: 80 }, (_, i) => phrases[i % phrases.length]!).join(' ');
 }
 
-// ── Update background word positions (repulsion) ────────────────────────
+// ── Background glyphs ──────────────────────────────────────────────────
 
-function updateBgWords(engine: GameEngine) {
-  const { bgWords, balls, words } = engine;
+function createBackgroundGlyphs(): BackgroundGlyph[] {
+  const glyphs: BackgroundGlyph[] = [];
+  for (let i = 0; i < BG_GLYPH_COUNT; i++) {
+    glyphs.push({
+      char: BG_GLYPH_CHARS[i % BG_GLYPH_CHARS.length],
+      x: Math.random() * GAME_WIDTH,
+      y: Math.random() * GAME_HEIGHT,
+      alpha: 0.1 + Math.random() * 0.18,
+      speed: 8 + Math.random() * 18,
+    });
+  }
+  return glyphs;
+}
 
-  for (let i = 0; i < bgWords.length; i++) {
-    const bw = bgWords[i];
-    let dx = 0;
-    let dy = 0;
-
-    // Center of background word
-    const bwCx = bw.homeX + bw.width / 2;
-    const bwCy = bw.homeY + bw.height / 2;
-
-    // Repulsion from balls
-    for (let j = 0; j < balls.length; j++) {
-      const ball = balls[j];
-      if (!ball.isActive) continue;
-
-      const diffX = bwCx - ball.pos.x;
-      const diffY = bwCy - ball.pos.y;
-      const dist = Math.sqrt(diffX * diffX + diffY * diffY);
-
-      if (dist < BALL_REPULSION_RADIUS && dist > 0.1) {
-        const force = (1 - dist / BALL_REPULSION_RADIUS) * BALL_REPULSION_STRENGTH;
-        dx += (diffX / dist) * force;
-        dy += (diffY / dist) * force;
-      }
+function updateBackgroundGlyphs(engine: GameEngine, dtSec: number) {
+  for (const g of engine.backgroundGlyphs) {
+    g.y += g.speed * dtSec;
+    if (g.y > GAME_HEIGHT + 10) {
+      g.y = -10;
+      g.x = 20 + Math.random() * (GAME_WIDTH - 40);
     }
+  }
+}
 
-    // Repulsion from alive target words
-    for (let j = 0; j < words.length; j++) {
-      const tw = words[j];
-      if (!tw.isAlive) continue;
+// ── Wake holes ─────────────────────────────────────────────────────────
 
-      const pad = WORD_REPULSION_PADDING;
-      const twLeft = tw.rect.x - pad;
-      const twRight = tw.rect.x + tw.rect.width + pad;
-      const twTop = tw.rect.y - pad;
-      const twBottom = tw.rect.y + tw.rect.height + pad;
+function trackWake(engine: GameEngine, ball: Ball) {
+  if (!engine.state.isRunning) return;
+  if (ball.wakePoint === null) {
+    ball.wakePoint = { x: ball.pos.x, y: ball.pos.y };
+    return;
+  }
+  const dx = ball.pos.x - ball.wakePoint.x;
+  const dy = ball.pos.y - ball.wakePoint.y;
+  if (dx * dx + dy * dy < WAKE_SPAWN_DISTANCE * WAKE_SPAWN_DISTANCE) return;
 
-      // Check if bg word center is within the repulsion zone
-      if (bwCx > twLeft && bwCx < twRight && bwCy > twTop && bwCy < twBottom) {
-        const twCx = tw.rect.x + tw.rect.width / 2;
-        const twCy = tw.rect.y + tw.rect.height / 2;
-        const diffX = bwCx - twCx;
-        const diffY = bwCy - twCy;
-        const dist = Math.sqrt(diffX * diffX + diffY * diffY);
+  engine.wakeHoles.push({
+    x: ball.pos.x,
+    y: ball.pos.y,
+    radius: WAKE_HOLE_RADIUS,
+    life: 0,
+    maxLife: WAKE_HOLE_MAX_LIFE,
+  });
+  ball.wakePoint = { x: ball.pos.x, y: ball.pos.y };
+}
 
-        if (dist > 0.1) {
-          // Stronger push perpendicular to the word (mostly horizontal or vertical)
-          const halfW = tw.rect.width / 2 + pad;
-          const halfH = tw.rect.height / 2 + pad;
-          const normX = diffX / halfW;
-          const normY = diffY / halfH;
-          const normLen = Math.sqrt(normX * normX + normY * normY);
-
-          if (normLen > 0.01) {
-            const force = WORD_REPULSION_STRENGTH * (1 - Math.min(normLen, 1));
-            dx += (normX / normLen) * force;
-            dy += (normY / normLen) * force;
-          }
-        }
-      }
+function updateWakeHoles(engine: GameEngine, dtSec: number) {
+  for (let i = engine.wakeHoles.length - 1; i >= 0; i--) {
+    const hole = engine.wakeHoles[i];
+    hole.life += dtSec;
+    if (hole.life >= hole.maxLife) {
+      engine.wakeHoles.splice(i, 1);
     }
+  }
+}
 
-    // Apply displacement with smooth return to home
-    const targetX = bw.homeX + dx;
-    const targetY = bw.homeY + dy;
-    bw.x += (targetX - bw.x) * BG_WORD_RETURN_SPEED;
-    bw.y += (targetY - bw.y) * BG_WORD_RETURN_SPEED;
+// ── Particles ──────────────────────────────────────────────────────────
+
+function spawnBurst(engine: GameEngine, word: TargetWord) {
+  const cx = word.rect.x + word.rect.width / 2;
+  const cy = word.rect.y + word.rect.height / 2;
+  const letters = word.text.split('');
+  for (let i = 0; i < letters.length; i++) {
+    const angle = (Math.PI * 2 * i) / Math.max(1, letters.length) + Math.random() * 0.35;
+    const speed = 80 + Math.random() * 120;
+    const fs = Math.max(14, word.fontSize * 0.7);
+    engine.particles.push({
+      char: letters[i],
+      x: cx,
+      y: cy,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 30,
+      color: word.color,
+      alpha: 1,
+      life: 0,
+      maxLife: 0.7 + Math.random() * 0.35,
+      rotation: 0,
+      spin: (Math.random() - 0.5) * 5,
+      wallRadius: Math.max(10, fs * 0.72),
+      fontSize: fs,
+    });
+  }
+}
+
+function updateParticles(engine: GameEngine, dtSec: number) {
+  for (let i = engine.particles.length - 1; i >= 0; i--) {
+    const p = engine.particles[i];
+    p.life += dtSec;
+    p.x += p.vx * dtSec;
+    p.y += p.vy * dtSec;
+    p.vy += 90 * dtSec; // gravity
+    p.rotation += p.spin * dtSec;
+    p.alpha = 1 - p.life / p.maxLife;
+    if (p.life >= p.maxLife) {
+      engine.particles.splice(i, 1);
+    }
   }
 }
 
 // ── Engine creation ─────────────────────────────────────────────────────
 
 export function createEngine(): GameEngine {
-  const levelIdx = 0;
-  const levelWords = LEVEL_WORDS[levelIdx];
-
   return {
     state: {
       score: 0,
@@ -296,10 +301,13 @@ export function createEngine(): GameEngine {
     },
     balls: [],
     paddle: createPaddle(),
-    words: layoutTargetWords(levelWords),
+    words: layoutTargetWords(LEVEL_WORDS[0]),
     powerWords: [],
+    particles: [],
     paddleTargetX: GAME_WIDTH / 2,
-    bgWords: createBgWords(),
+    wakeHoles: [],
+    backgroundGlyphs: createBackgroundGlyphs(),
+    textWallPrepared: prepareWithSegments(buildTextWallCopy(), TEXT_WALL_FONT),
   };
 }
 
@@ -309,13 +317,11 @@ export function launchBall(engine: GameEngine) {
   if (engine.balls.length > 0 && engine.state.isStarted) return;
 
   const paddle = engine.paddle;
-  const ball = createBall(
+  engine.balls.push(createBall(
     paddle.x + paddle.width / 2,
     paddle.y - BALL_RADIUS - 2,
     -Math.PI / 2 + (Math.random() - 0.5) * 0.4,
-  );
-
-  engine.balls.push(ball);
+  ));
   engine.state.isStarted = true;
   engine.state.isRunning = true;
 }
@@ -331,7 +337,7 @@ function spawnPowerWord(engine: GameEngine, fromWord: TargetWord) {
   if (Math.random() > 0.35) return;
 
   const config = POWER_WORDS[Math.floor(Math.random() * POWER_WORDS.length)];
-  const pw: PowerWord = {
+  engine.powerWords.push({
     id: nextPowerWordId++,
     text: config.text,
     type: config.type,
@@ -344,20 +350,17 @@ function spawnPowerWord(engine: GameEngine, fromWord: TargetWord) {
     isActive: true,
     width: 70,
     height: 20,
-  };
-  engine.powerWords.push(pw);
+  });
 }
 
 function applyPowerUp(engine: GameEngine, type: PowerWordType) {
   if (engine.state.soundEnabled) sound.playPowerUp();
 
   if (type === 'multiBall') {
-    const refBall = engine.balls.find((b) => b.isActive);
-    if (refBall) {
+    const ref = engine.balls.find((b) => b.isActive);
+    if (ref) {
       for (let i = 0; i < POWERUP_MULTIBALL_COUNT - 1; i++) {
-        const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
-        const newBall = createBall(refBall.pos.x, refBall.pos.y, angle);
-        engine.balls.push(newBall);
+        engine.balls.push(createBall(ref.pos.x, ref.pos.y, -Math.PI / 2 + (Math.random() - 0.5) * 1.5));
       }
     }
   } else if (type === 'widen') {
@@ -370,12 +373,12 @@ function applyPowerUp(engine: GameEngine, type: PowerWordType) {
 function clampSpeed(vel: Vector2): Vector2 {
   const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
   if (speed > BALL_MAX_SPEED) {
-    const scale = BALL_MAX_SPEED / speed;
-    return { x: vel.x * scale, y: vel.y * scale };
+    const s = BALL_MAX_SPEED / speed;
+    return { x: vel.x * s, y: vel.y * s };
   }
   if (speed < BALL_SPEED * 0.8) {
-    const scale = (BALL_SPEED * 0.8) / speed;
-    return { x: vel.x * scale, y: vel.y * scale };
+    const s = (BALL_SPEED * 0.8) / speed;
+    return { x: vel.x * s, y: vel.y * s };
   }
   return vel;
 }
@@ -383,20 +386,23 @@ function clampSpeed(vel: Vector2): Vector2 {
 // ── Main update ─────────────────────────────────────────────────────────
 
 export function update(engine: GameEngine, dt: number) {
-  // Always update bg words so the repulsion feels alive even when paused
-  updateBgWords(engine);
+  const dtSec = dt / 1000;
+  updateBackgroundGlyphs(engine, dtSec);
+  updateWakeHoles(engine, dtSec);
+  updateParticles(engine, dtSec);
 
   if (!engine.state.isRunning || engine.state.isGameOver || engine.state.isLevelComplete) return;
 
   const { paddle, balls, words, powerWords, state } = engine;
 
-  // Paddle position (smooth follow)
+  // Time scale: frame-based physics assume ~60fps (16.67ms).
+  const timeScale = dt / 16.667;
+
+  // Paddle
   const targetX = engine.paddleTargetX - paddle.width / 2;
-  const paddleDx = targetX - paddle.x;
-  paddle.x += paddleDx * 0.2;
+  paddle.x += (targetX - paddle.x) * Math.min(0.2 * timeScale, 1);
   paddle.x = Math.max(BORDER_WIDTH, Math.min(GAME_WIDTH - BORDER_WIDTH - paddle.width, paddle.x));
 
-  // Widen timer
   if (paddle.isWidened) {
     paddle.widenTimer -= dt;
     if (paddle.widenTimer <= 0) {
@@ -406,19 +412,19 @@ export function update(engine: GameEngine, dt: number) {
     }
   }
 
-  // Update balls
+  // Balls
   for (const ball of balls) {
     if (!ball.isActive) continue;
 
-    // Trail
     ball.trail.push({ x: ball.pos.x, y: ball.pos.y });
     if (ball.trail.length > BALL_TRAIL_LENGTH) ball.trail.shift();
 
-    // Move
-    ball.pos.x += ball.vel.x;
-    ball.pos.y += ball.vel.y;
+    ball.pos.x += ball.vel.x * timeScale;
+    ball.pos.y += ball.vel.y * timeScale;
 
-    // Wall collisions
+    trackWake(engine, ball);
+
+    // Walls
     if (ball.pos.x - ball.radius <= BORDER_WIDTH) {
       ball.pos.x = BORDER_WIDTH + ball.radius;
       ball.vel.x = Math.abs(ball.vel.x);
@@ -434,14 +440,12 @@ export function update(engine: GameEngine, dt: number) {
       ball.vel.y = Math.abs(ball.vel.y);
       if (state.soundEnabled) sound.playBounceWall();
     }
-
-    // Bottom — lose ball
     if (ball.pos.y + ball.radius >= GAME_HEIGHT) {
       ball.isActive = false;
       continue;
     }
 
-    // Paddle collision
+    // Paddle
     if (
       ball.vel.y > 0 &&
       ball.pos.y + ball.radius >= paddle.y &&
@@ -460,10 +464,9 @@ export function update(engine: GameEngine, dt: number) {
 
     ball.vel = clampSpeed(ball.vel);
 
-    // Word collisions
+    // Words
     for (const word of words) {
       if (!word.isAlive) continue;
-
       const { rect } = word;
       if (
         ball.pos.x + ball.radius > rect.x &&
@@ -475,30 +478,26 @@ export function update(engine: GameEngine, dt: number) {
         word.opacity = 0;
         state.score += WORD_HIT_SCORE;
 
-        const overlapLeft = ball.pos.x + ball.radius - rect.x;
-        const overlapRight = rect.x + rect.width - (ball.pos.x - ball.radius);
-        const overlapTop = ball.pos.y + ball.radius - rect.y;
-        const overlapBottom = rect.y + rect.height - (ball.pos.y - ball.radius);
-        const minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-
-        if (minOverlap === overlapLeft || minOverlap === overlapRight) {
-          ball.vel.x = -ball.vel.x;
-        } else {
-          ball.vel.y = -ball.vel.y;
-        }
+        const oL = ball.pos.x + ball.radius - rect.x;
+        const oR = rect.x + rect.width - (ball.pos.x - ball.radius);
+        const oT = ball.pos.y + ball.radius - rect.y;
+        const oB = rect.y + rect.height - (ball.pos.y - ball.radius);
+        const min = Math.min(oL, oR, oT, oB);
+        if (min === oL || min === oR) ball.vel.x = -ball.vel.x;
+        else ball.vel.y = -ball.vel.y;
 
         if (state.soundEnabled) sound.playWordHit();
+        spawnBurst(engine, word);
         spawnPowerWord(engine, word);
       }
     }
   }
 
-  // Remove inactive balls
-  const activeBalls = balls.filter((b) => b.isActive);
-  if (activeBalls.length === 0 && engine.state.isStarted) {
+  // Remove dead balls
+  const active = balls.filter((b) => b.isActive);
+  if (active.length === 0 && engine.state.isStarted) {
     state.lives--;
     if (state.soundEnabled) sound.playLifeLost();
-
     if (state.lives <= 0) {
       state.isGameOver = true;
       state.isRunning = false;
@@ -508,13 +507,12 @@ export function update(engine: GameEngine, dt: number) {
       engine.state.isRunning = false;
     }
   }
-  engine.balls = activeBalls;
+  engine.balls = active;
 
-  // Update power words
+  // Power words
   for (const pw of powerWords) {
     if (!pw.isActive) continue;
-    pw.pos.y += pw.vel.y;
-
+    pw.pos.y += pw.vel.y * timeScale;
     if (
       pw.pos.y + pw.height / 2 >= paddle.y &&
       pw.pos.y - pw.height / 2 <= paddle.y + paddle.height &&
@@ -525,12 +523,11 @@ export function update(engine: GameEngine, dt: number) {
       state.score += POWER_WORD_SCORE;
       applyPowerUp(engine, pw.type);
     }
-
     if (pw.pos.y > GAME_HEIGHT + 30) pw.isActive = false;
   }
   engine.powerWords = powerWords.filter((pw) => pw.isActive);
 
-  // Check level complete
+  // Level complete
   if (words.filter((w) => w.isAlive).length === 0) {
     state.isLevelComplete = true;
     state.isRunning = false;
@@ -541,21 +538,21 @@ export function update(engine: GameEngine, dt: number) {
 // ── Level transitions ───────────────────────────────────────────────────
 
 export function nextLevel(engine: GameEngine) {
-  const nextLevelIdx = engine.state.level % LEVEL_WORDS.length;
+  const idx = engine.state.level % LEVEL_WORDS.length;
   engine.state.level++;
   engine.state.isLevelComplete = false;
   engine.state.isStarted = false;
   engine.state.isRunning = false;
   engine.balls = [];
   engine.powerWords = [];
+  engine.particles = [];
   engine.paddle = createPaddle();
-  engine.words = layoutTargetWords(LEVEL_WORDS[nextLevelIdx]);
-  engine.bgWords = createBgWords();
+  engine.words = layoutTargetWords(LEVEL_WORDS[idx]);
+  engine.wakeHoles = [];
 }
 
 export function resetGame(engine: GameEngine) {
-  const fresh = createEngine();
-  Object.assign(engine, fresh);
+  Object.assign(engine, createEngine());
 }
 
 export function toggleSound(engine: GameEngine) {
@@ -568,8 +565,8 @@ export function getWordsRemaining(engine: GameEngine): number {
 
 export function getActivePowerUps(engine: GameEngine): string[] {
   const active: string[] = [];
-  const multiBallCount = engine.balls.filter((b) => b.isActive).length;
-  if (multiBallCount > 1) active.push(`${multiBallCount} BALLS`);
+  const n = engine.balls.filter((b) => b.isActive).length;
+  if (n > 1) active.push(`${n} BALLS`);
   if (engine.paddle.isWidened) active.push(`WIDEN ${Math.ceil(engine.paddle.widenTimer / 1000)}s`);
   return active;
 }

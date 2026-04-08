@@ -52,6 +52,40 @@
   letter-spacing: 2px;
 }
 
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.speedGroup {
+  display: flex;
+  gap: 2px;
+}
+
+.speedBtn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: rgba(80, 140, 180, 0.1);
+  color: #5a7a95;
+  border: 1px solid rgba(80, 140, 180, 0.25);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+}
+
+.speedBtn:hover {
+  background: rgba(80, 140, 180, 0.25);
+  color: #b4c8dc;
+}
+
+.speedBtnActive {
+  background: rgba(80, 140, 180, 0.35);
+  color: #e0ecf5;
+  border-color: rgba(80, 140, 180, 0.6);
+}
+
 .soundBtn {
   font-family: 'Share Tech Mono', monospace;
   font-size: 12px;

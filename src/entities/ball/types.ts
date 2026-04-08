@@ -7,4 +7,6 @@ export interface Ball {
   radius: number;
   trail: Vector2[];
   isActive: boolean;
+  /** Last position where a wake hole was spawned. */
+  wakePoint: Vector2 | null;
 }

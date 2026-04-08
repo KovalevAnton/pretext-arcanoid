@@ -48,3 +48,29 @@
   border-color: rgba(80, 140, 180, 0.8);
   background: rgba(80, 140, 180, 0.15);
 }
+
+@media (max-width: 768px) {
+  .footer {
+    font-size: 10px;
+    padding: 6px 8px;
+    gap: 6px;
+    margin-top: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .footer {
+    display: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .footer {
+    font-size: 9px;
+    gap: 4px;
+  }
+}

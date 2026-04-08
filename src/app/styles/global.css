@@ -16,7 +16,7 @@ body {
   background: #040609;
   color: #e0ecf5;
   font-family: 'Share Tech Mono', 'Courier New', monospace;
-  overflow: hidden;
+  overflow-x: hidden;
   user-select: none;
   -webkit-user-select: none;
 }

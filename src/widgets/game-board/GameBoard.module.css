@@ -46,3 +46,23 @@
   border-radius: 0 0 6px 6px;
   box-sizing: border-box;
 }
+
+@media (max-width: 768px) {
+  .boardWrapper::after {
+    border-radius: 0;
+  }
+
+  .canvas {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .boardWrapper {
+    flex: 1;
+    min-height: 0;
+    aspect-ratio: unset;
+  }
+}

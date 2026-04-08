@@ -20,12 +20,11 @@ export const POWERUP_MULTIBALL_COUNT = 3;
 
 export const BORDER_WIDTH = 3;
 
-
 // ── Text wall ───────────────────────────────────────────────────────────
 export const TEXT_WALL_FONT = '600 12px "Share Tech Mono", monospace';
 export const TEXT_WALL_LINE_HEIGHT = 16;
-export const TEXT_WALL_ALPHA = 0.52;
-export const TEXT_WALL_COLORS = ['#35586b', '#40637a', '#4d7285', '#58707d'];
+export const TEXT_WALL_ALPHA = 0.35;
+export const TEXT_WALL_COLORS = ['#1a3040', '#1f3848', '#254050', '#2a4555'];
 export const TEXT_WALL_MIN_SLOT = 18;
 export const TEXT_WALL_BRICK_PAD = 8;
 export const TEXT_WALL_PADDLE_PAD = 12;
@@ -41,6 +40,14 @@ export const WAKE_HOLE_MAX_LIFE = 0.42;
 export const BG_GLYPH_COUNT = 54;
 export const BG_GLYPH_CHARS = ['.', ':', '\u00B7', '*', '+', ';'];
 
+// ── Screen shake ────────────────────────────────────────────────────────
+export const SHAKE_INTENSITY = 4;
+export const SHAKE_DURATION = 150;
+
+// ── Combo system ────────────────────────────────────────────────────────
+export const COMBO_TIMEOUT = 2000;
+export const COMBO_DISPLAY_DURATION = 800;
+
 export const WORD_COLORS = [
   '#ff6b6b', '#ffd93d', '#6bcb77', '#4d96ff',
   '#ff922b', '#845ef7', '#20c997', '#f06595',
@@ -50,19 +57,19 @@ export const WORD_COLORS = [
 
 export const LEVEL_WORDS: string[][] = [
   [
-    'Pretext', 'turns', 'motion', 'into', 'language',
-    'while', 'bright', 'words', 'hold', 'fast', 'and', 'the',
-    'wall', 'bends', 'around', 'them',
+    'React', 'hooks', 'state', 'props', 'render',
+    'memo', 'lazy', 'effect', 'context', 'reducer', 'fiber', 'DOM',
+    'ref', 'key', 'Next.js', 'SSR',
   ],
   [
-    'Canvas', 'draws', 'light', 'across', 'the',
-    'every', 'pixel', 'frame', 'burns', 'sharp', 'and', 'clear',
-    'glyph', 'renders', 'clean', 'lines',
+    'TypeScript', 'types', 'interface', 'generic', 'enum', 'async',
+    'await', 'promise', 'Zustand', 'store', 'Vite', 'ESLint',
+    'SWR', 'cache', 'query', 'GraphQL',
   ],
   [
-    'React', 'builds', 'state', 'through', 'hooks',
-    'compose', 'views', 'that', 'update', 'fast', 'in', 'the',
-    'render', 'loop', 'again', 'now',
+    'Canvas', 'WebGL', 'animation', 'frame', 'pixel', 'shader',
+    'buffer', 'Audio', 'Cypress', 'testing', 'Expo', 'native',
+    'Svelte', 'signal', 'Redux', 'thunk',
   ],
 ];
 

@@ -3,8 +3,8 @@
   max-width: 1100px;
   font-family: 'Share Tech Mono', monospace;
   color: #b4c8dc;
-  background: #0d1520;
-  border: 2px solid rgba(80, 140, 180, 0.4);
+  background: #060a10;
+  border: 2px solid rgba(80, 140, 180, 0.3);
   border-radius: 6px 6px 0 0;
   padding: 12px 20px;
   box-sizing: border-box;
@@ -115,6 +115,20 @@
 .info {
   font-size: 13px;
   color: #6a8aa5;
+}
+
+.hudBottomRight {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.combo {
+  font-size: 13px;
+  color: #ffd93d;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px rgba(255, 217, 61, 0.4);
 }
 
 .powerUps {

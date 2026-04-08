@@ -14,10 +14,13 @@ interface GameStore {
   isLevelComplete: boolean;
   soundEnabled: boolean;
   gameSpeed: number;
+  combo: number;
+  maxCombo: number;
+  highScore: number;
 
-  /** Sync UI-visible state from the mutable engine. */
   sync: (engine: GameEngine) => void;
   setGameSpeed: (speed: number) => void;
+  setHighScore: (score: number) => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -32,8 +35,15 @@ export const useGameStore = create<GameStore>((set) => ({
   isLevelComplete: false,
   soundEnabled: false,
   gameSpeed: 1,
+  combo: 0,
+  maxCombo: 0,
+  highScore: parseInt(localStorage.getItem('stackbreaker-highscore') || '0', 10),
 
   setGameSpeed: (speed) => set({ gameSpeed: speed }),
+  setHighScore: (score) => {
+    localStorage.setItem('stackbreaker-highscore', String(score));
+    set({ highScore: score });
+  },
   sync: (engine) => set({
     score: engine.state.score,
     lives: engine.state.lives,
@@ -45,5 +55,7 @@ export const useGameStore = create<GameStore>((set) => ({
     soundEnabled: engine.state.soundEnabled,
     wordsRemaining: getWordsRemaining(engine),
     activePowerUps: getActivePowerUps(engine),
+    combo: engine.combo,
+    maxCombo: engine.maxCombo,
   }),
 }));

@@ -58,7 +58,13 @@ export function useGame() {
       const dt = rawDt * useGameStore.getState().gameSpeed;
       update(engine, dt);
       render(ctx, engine);
-      if (++frame % 4 === 0) sync(engine);
+      if (++frame % 4 === 0) {
+        sync(engine);
+        if (engine.state.isGameOver) {
+          const { highScore, setHighScore } = useGameStore.getState();
+          if (engine.state.score > highScore) setHighScore(engine.state.score);
+        }
+      }
 
       animFrameRef.current = requestAnimationFrame(loop);
     };

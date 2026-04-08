@@ -12,12 +12,19 @@ import {
   TEXT_WALL_PADDLE_PAD,
   TEXT_WALL_REGION_PAD,
   BALL_WAKE_RADIUS,
+  COMBO_DISPLAY_DURATION,
 } from '@/shared/config/constants';
 import { measureWidth } from '@/shared/lib/text';
 import { layoutNextLine, type LayoutCursor } from '@chenglou/pretext';
 
 const PW_FONT = 'bold 14px "Share Tech Mono", monospace';
 const WALL_FONT = '600 12px "Share Tech Mono", monospace';
+
+// ── Easing ──────────────────────────────────────────────────────────────
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
 
 // ── Interval types for slot carving ─────────────────────────────────────
 
@@ -88,7 +95,6 @@ function getTextWallSlots(
 ): Interval[] {
   const blocked: Interval[] = [];
 
-  // Bricks (target words)
   for (const word of engine.words) {
     if (!word.isAlive) continue;
     if (bandBottom <= word.rect.y - TEXT_WALL_BRICK_PAD) continue;
@@ -99,7 +105,6 @@ function getTextWallSlots(
     });
   }
 
-  // Paddle
   const p = engine.paddle;
   const paddleTop = p.y - 6;
   const paddleBottom = p.y + p.height + 6;
@@ -110,18 +115,15 @@ function getTextWallSlots(
     });
   }
 
-  // Balls
   for (const ball of engine.balls) {
     if (!ball.isActive) continue;
     pushCircleInterval(blocked, ball.pos.x, ball.pos.y, BALL_WAKE_RADIUS, bandTop, bandBottom);
   }
 
-  // Wake holes
   for (const hole of engine.wakeHoles) {
     pushCircleInterval(blocked, hole.x, hole.y, hole.radius, bandTop, bandBottom);
   }
 
-  // Power words
   for (const pw of engine.powerWords) {
     if (!pw.isActive) continue;
     const pwTop = pw.pos.y - pw.height / 2 - 4;
@@ -133,7 +135,6 @@ function getTextWallSlots(
     });
   }
 
-  // Particles (letter burst debris)
   for (const particle of engine.particles) {
     if (particle.alpha <= 0.08 || particle.wallRadius <= 0) continue;
     pushCircleInterval(blocked, particle.x, particle.y, particle.wallRadius, bandTop, bandBottom);
@@ -195,12 +196,32 @@ function drawBackgroundGlyphs(ctx: CanvasRenderingContext2D, engine: GameEngine)
   ctx.font = '600 15px "Share Tech Mono", monospace';
   ctx.textBaseline = 'top';
   for (const g of engine.backgroundGlyphs) {
-    ctx.fillStyle = '#c8e9ff';
+    ctx.fillStyle = '#4a6a80';
     ctx.globalAlpha = g.alpha;
-    ctx.shadowColor = 'rgba(117, 215, 230, 0.16)';
-    ctx.shadowBlur = 6;
+    ctx.shadowColor = 'rgba(80, 160, 200, 0.1)';
+    ctx.shadowBlur = 3;
     ctx.fillText(g.char, g.x, g.y);
   }
+  ctx.restore();
+}
+
+// ── Combo floating text ────────────────────────────────────────────────
+
+function drawComboText(ctx: CanvasRenderingContext2D, engine: GameEngine) {
+  const hit = engine.lastComboHit;
+  if (!hit) return;
+  const progress = 1 - hit.timer / COMBO_DISPLAY_DURATION;
+  const alpha = 1 - progress;
+  const yOffset = progress * -30;
+  ctx.save();
+  ctx.font = 'bold 28px "Orbitron", monospace';
+  ctx.fillStyle = '#ffd93d';
+  ctx.shadowColor = '#ffd93d';
+  ctx.shadowBlur = 10;
+  ctx.globalAlpha = alpha;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(hit.text, hit.x, hit.y + yOffset);
   ctx.restore();
 }
 
@@ -209,10 +230,20 @@ function drawBackgroundGlyphs(ctx: CanvasRenderingContext2D, engine: GameEngine)
 export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   const { balls, paddle, words, powerWords } = engine;
 
-  // ── Background ────────────────────────────────────────────────────────
+  // ── Background (before shake) ─────────────────────────────────────────
   ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-  ctx.fillStyle = '#0a0e17';
+  ctx.fillStyle = '#040609';
   ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+  // ── Screen shake wrapper ──────────────────────────────────────────────
+  ctx.save();
+  const shake = engine.screenShake;
+  if (shake.elapsed < shake.duration) {
+    const decay = 1 - shake.elapsed / shake.duration;
+    const ox = (Math.random() - 0.5) * 2 * shake.intensity * decay;
+    const oy = (Math.random() - 0.5) * 2 * shake.intensity * decay;
+    ctx.translate(ox, oy);
+  }
 
   // ── Background glyphs ─────────────────────────────────────────────────
   drawBackgroundGlyphs(ctx, engine);
@@ -224,17 +255,29 @@ export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   drawBorder(ctx);
   drawCorners(ctx);
 
-  // ── Target words ──────────────────────────────────────────────────────
-  for (const word of words) {
+  // ── Target words (with intro animation) ───────────────────────────────
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
     if (!word.isAlive) continue;
+
+    let drawX = word.rect.x;
+    let drawY = word.rect.y;
+
+    if (engine.introProgress < 1 && engine.introStartPositions[i]) {
+      const t = easeOutCubic(engine.introProgress);
+      const start = engine.introStartPositions[i];
+      drawX = start.x + (word.rect.x - start.x) * t;
+      drawY = start.y + (word.rect.y - start.y) * t;
+    }
+
     ctx.save();
     ctx.font = `bold ${word.fontSize}px "Orbitron", "Share Tech Mono", monospace`;
     ctx.fillStyle = word.color;
     ctx.shadowColor = word.color;
     ctx.shadowBlur = 8;
     ctx.textBaseline = 'top';
-    ctx.globalAlpha = word.opacity;
-    ctx.fillText(word.text, word.rect.x + 10, word.rect.y + 5);
+    ctx.globalAlpha = word.opacity * Math.min(1, engine.introProgress * 2);
+    ctx.fillText(word.text, drawX + 10, drawY + 5);
     ctx.restore();
   }
 
@@ -252,7 +295,7 @@ export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     const px = pw.pos.x - tw / 2;
     const py = pw.pos.y - th / 2;
 
-    ctx.fillStyle = 'rgba(10, 14, 23, 0.85)';
+    ctx.fillStyle = 'rgba(4, 6, 9, 0.9)';
     ctx.fillRect(px, py, tw, th);
     ctx.strokeStyle = pw.color;
     ctx.lineWidth = 1.5;
@@ -281,6 +324,9 @@ export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.restore();
   }
 
+  // ── Combo text ────────────────────────────────────────────────────────
+  drawComboText(ctx, engine);
+
   // ── Balls ─────────────────────────────────────────────────────────────
   for (const ball of balls) {
     if (!ball.isActive) continue;
@@ -298,7 +344,10 @@ export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   // ── Paddle ────────────────────────────────────────────────────────────
   drawPaddle(ctx, paddle);
 
-  // ── Overlays ──────────────────────────────────────────────────────────
+  // ── End shake wrapper ─────────────────────────────────────────────────
+  ctx.restore();
+
+  // ── Overlays (outside shake) ──────────────────────────────────────────
   if (engine.state.isGameOver) {
     drawOverlay(ctx, 'GAME OVER', 'Press SPACE or tap to restart');
   } else if (engine.state.isLevelComplete) {
@@ -413,8 +462,8 @@ function drawCross(ctx: CanvasRenderingContext2D, x: number, y: number, s: numbe
 
 function drawOverlay(ctx: CanvasRenderingContext2D, title: string, subtitle: string) {
   ctx.save();
-  ctx.fillStyle = 'rgba(5, 10, 20, 0.6)';
-  ctx.fillRect(0, GAME_HEIGHT / 2 - 60, GAME_WIDTH, 120);
+  ctx.fillStyle = 'rgba(4, 6, 9, 0.7)';
+  ctx.fillRect(0, GAME_HEIGHT / 2 - 70, GAME_WIDTH, 140);
   if (title) {
     ctx.font = 'bold 36px "Orbitron", monospace';
     ctx.fillStyle = '#ff6b6b';
@@ -422,12 +471,18 @@ function drawOverlay(ctx: CanvasRenderingContext2D, title: string, subtitle: str
     ctx.textBaseline = 'middle';
     ctx.shadowColor = '#ff6b6b';
     ctx.shadowBlur = 12;
-    ctx.fillText(title, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 15);
+    ctx.fillText(title, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 20);
   }
   ctx.shadowBlur = 0;
   ctx.font = '16px "Share Tech Mono", monospace';
   ctx.fillStyle = 'rgba(180, 200, 220, 0.8)';
   ctx.textAlign = 'center';
-  ctx.fillText(subtitle, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 25);
+  ctx.fillText(subtitle, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
+
+  if (title === 'GAME OVER') {
+    ctx.font = '12px "Share Tech Mono", monospace';
+    ctx.fillStyle = 'rgba(122, 154, 181, 0.6)';
+    ctx.fillText('Built by Anton Kovalev', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 45);
+  }
   ctx.restore();
 }

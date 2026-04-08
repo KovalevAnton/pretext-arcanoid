@@ -29,6 +29,10 @@ import {
   WAKE_HOLE_MAX_LIFE,
   BG_GLYPH_COUNT,
   BG_GLYPH_CHARS,
+  SHAKE_INTENSITY,
+  SHAKE_DURATION,
+  COMBO_TIMEOUT,
+  COMBO_DISPLAY_DURATION,
   type PowerWordType,
 } from '@/shared/config/constants';
 import { measureWidth } from '@/shared/lib/text';
@@ -93,6 +97,13 @@ export interface GameEngine {
   wakeHoles: WakeHole[];
   backgroundGlyphs: BackgroundGlyph[];
   textWallPrepared: PreparedTextWithSegments;
+  screenShake: { intensity: number; duration: number; elapsed: number };
+  combo: number;
+  comboTimer: number;
+  maxCombo: number;
+  lastComboHit: { x: number; y: number; text: string; timer: number } | null;
+  introProgress: number;
+  introStartPositions: { x: number; y: number }[];
 }
 
 // ── Factory helpers ─────────────────────────────────────────────────────
@@ -177,9 +188,9 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
 
 function buildTextWallCopy(): string {
   const phrases = [
-    'pretext layout measure cursor segment wrap glyph inline reflow stream bidi kern space split signal static dynamic vector module bounce trail track render flow',
-    'text snakes between every obstacle and keeps every word alive while the field recomposes around the moving ball and the waiting paddle',
-    'small copy fills the arena from border to border and the larger block labels stay readable as targets floating above the paragraph wall',
+    'React TypeScript Next.js Zustand Vite hooks state props component render virtual DOM fiber reconciler lazy suspense memo ref effect context reducer',
+    'SWR cache mutation query GraphQL schema resolver subscription Cypress e2e testing coverage assertion Expo NativeWind responsive layout',
+    'Svelte store binding reactive signal Canvas animation frame requestAnimationFrame Web Audio API CSS modules Tailwind utility Redux middleware thunk',
   ];
   return Array.from({ length: 80 }, (_, i) => phrases[i % phrases.length]!).join(' ');
 }
@@ -287,7 +298,15 @@ function updateParticles(engine: GameEngine, dtSec: number) {
 
 // ── Engine creation ─────────────────────────────────────────────────────
 
+function generateIntroPositions(count: number): { x: number; y: number }[] {
+  return Array.from({ length: count }, () => ({
+    x: (Math.random() - 0.5) * GAME_WIDTH * 2,
+    y: -100 - Math.random() * 400,
+  }));
+}
+
 export function createEngine(): GameEngine {
+  const words = layoutTargetWords(LEVEL_WORDS[0]);
   return {
     state: {
       score: 0,
@@ -301,13 +320,20 @@ export function createEngine(): GameEngine {
     },
     balls: [],
     paddle: createPaddle(),
-    words: layoutTargetWords(LEVEL_WORDS[0]),
+    words,
     powerWords: [],
     particles: [],
     paddleTargetX: GAME_WIDTH / 2,
     wakeHoles: [],
     backgroundGlyphs: createBackgroundGlyphs(),
     textWallPrepared: prepareWithSegments(buildTextWallCopy(), TEXT_WALL_FONT),
+    screenShake: { intensity: 0, duration: 0, elapsed: 0 },
+    combo: 0,
+    comboTimer: 0,
+    maxCombo: 0,
+    lastComboHit: null,
+    introProgress: 0,
+    introStartPositions: generateIntroPositions(words.length),
   };
 }
 
@@ -390,6 +416,29 @@ export function update(engine: GameEngine, dt: number) {
   updateBackgroundGlyphs(engine, dtSec);
   updateWakeHoles(engine, dtSec);
   updateParticles(engine, dtSec);
+
+  // Intro animation (runs even before game starts)
+  if (engine.introProgress < 1) {
+    engine.introProgress = Math.min(1, engine.introProgress + dtSec);
+  }
+
+  // Screen shake decay
+  if (engine.screenShake.elapsed < engine.screenShake.duration) {
+    engine.screenShake.elapsed += dt;
+  }
+
+  // Combo timer decay
+  if (engine.comboTimer > 0) {
+    engine.comboTimer -= dt;
+    if (engine.comboTimer <= 0) {
+      engine.combo = 0;
+      engine.comboTimer = 0;
+    }
+  }
+  if (engine.lastComboHit) {
+    engine.lastComboHit.timer -= dt;
+    if (engine.lastComboHit.timer <= 0) engine.lastComboHit = null;
+  }
 
   if (!engine.state.isRunning || engine.state.isGameOver || engine.state.isLevelComplete) return;
 
@@ -476,7 +525,23 @@ export function update(engine: GameEngine, dt: number) {
       ) {
         word.isAlive = false;
         word.opacity = 0;
-        state.score += WORD_HIT_SCORE;
+
+        // Combo scoring
+        engine.combo++;
+        engine.comboTimer = COMBO_TIMEOUT;
+        if (engine.combo > engine.maxCombo) engine.maxCombo = engine.combo;
+        state.score += WORD_HIT_SCORE * Math.max(1, engine.combo);
+        if (engine.combo > 1) {
+          engine.lastComboHit = {
+            x: rect.x + rect.width / 2,
+            y: rect.y,
+            text: `x${engine.combo}!`,
+            timer: COMBO_DISPLAY_DURATION,
+          };
+        }
+
+        // Screen shake
+        engine.screenShake = { intensity: SHAKE_INTENSITY, duration: SHAKE_DURATION, elapsed: 0 };
 
         const oL = ball.pos.x + ball.radius - rect.x;
         const oR = rect.x + rect.width - (ball.pos.x - ball.radius);
@@ -549,6 +614,11 @@ export function nextLevel(engine: GameEngine) {
   engine.paddle = createPaddle();
   engine.words = layoutTargetWords(LEVEL_WORDS[idx]);
   engine.wakeHoles = [];
+  engine.combo = 0;
+  engine.comboTimer = 0;
+  engine.lastComboHit = null;
+  engine.introProgress = 0;
+  engine.introStartPositions = generateIntroPositions(engine.words.length);
 }
 
 export function resetGame(engine: GameEngine) {

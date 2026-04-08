@@ -12,6 +12,8 @@ import {
 import { render } from './renderer';
 import { useGameStore } from './store';
 import { GAME_WIDTH } from '@/shared/config/constants';
+import { clearCache } from '@chenglou/pretext';
+import { clearMeasureCache } from '@/shared/lib/text';
 
 export function useGame() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -49,8 +51,13 @@ export function useGame() {
     let keyboardIv = 0;
     const keysDown = new Set<string>();
 
-    // Wait for fonts before creating engine — measureWidth needs correct metrics
-    document.fonts.ready.then(() => {
+    // Explicitly load game fonts, then clear pretext's measurement cache
+    Promise.all([
+      document.fonts.load('bold 50px "Orbitron"'),
+      document.fonts.load('600 12px "Share Tech Mono"'),
+    ]).then(() => {
+      clearCache();
+      clearMeasureCache();
       if (cancelled) return;
 
       const engine = createEngine();

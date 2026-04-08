@@ -22,3 +22,8 @@ export function measureWidth(text: string, font: string): number {
   const result = layoutWithLines(p, Infinity, 1);
   return result.lines[0]?.width ?? 0;
 }
+
+/** Clear local prepared-text cache (call after fonts load). */
+export function clearMeasureCache(): void {
+  preparedCache.clear();
+}

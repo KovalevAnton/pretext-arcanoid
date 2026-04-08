@@ -16,7 +16,13 @@
       "Bash(git commit -m 'feat: implement Pretext Breaker game with Moses text repulsion effect:*)",
       "Bash(grep -n \"^export\" entities/*/types.ts)",
       "Bash(gh api:*)",
-      "Bash(git commit -m 'feat: rebrand to Stack Breaker portfolio game:*)"
+      "Bash(git commit -m 'feat: rebrand to Stack Breaker portfolio game:*)",
+      "Bash(git filter-branch -f --msg-filter ':*)",
+      "Bash(git checkout:*)",
+      "Bash(git clean:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

@@ -173,7 +173,8 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
         width = measureWidth(text, targetFont(fontSize)) + 20;
       }
 
-      const x = marginX + col * cellWidth + cellWidth / 2 - width / 2;
+      const rawX = marginX + col * cellWidth + cellWidth / 2 - width / 2;
+      const x = Math.max(BORDER_WIDTH + 10, Math.min(rawX, GAME_WIDTH - BORDER_WIDTH - 10 - width));
       const y = marginY + row * rowHeight + rowHeight / 2 - fontSize / 2;
 
       words.push({

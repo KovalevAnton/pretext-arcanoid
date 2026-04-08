@@ -163,8 +163,15 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
 
     for (let col = 0; col < count && wordIdx < levelWords.length; col++) {
       const text = levelWords[wordIdx];
-      const fontSize = text.length <= 3 ? 50 : text.length <= 5 ? 44 : text.length <= 7 ? 38 : 32;
-      const width = measureWidth(text, targetFont(fontSize)) + 20;
+      const maxWidth = cellWidth - 20;
+
+      // Pick largest font that fits the cell
+      let fontSize = text.length <= 3 ? 50 : text.length <= 5 ? 44 : text.length <= 7 ? 38 : 32;
+      let width = measureWidth(text, targetFont(fontSize)) + 20;
+      while (width > maxWidth && fontSize > 18) {
+        fontSize -= 2;
+        width = measureWidth(text, targetFont(fontSize)) + 20;
+      }
 
       const x = marginX + col * cellWidth + cellWidth / 2 - width / 2;
       const y = marginY + row * rowHeight + rowHeight / 2 - fontSize / 2;

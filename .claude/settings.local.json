@@ -15,7 +15,8 @@
       "Bash(git commit -m ':*)",
       "Bash(git commit -m 'feat: implement Pretext Breaker game with Moses text repulsion effect:*)",
       "Bash(grep -n \"^export\" entities/*/types.ts)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(git commit -m 'feat: rebrand to Stack Breaker portfolio game:*)"
     ]
   }
 }

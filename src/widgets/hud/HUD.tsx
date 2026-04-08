@@ -6,12 +6,12 @@ export function HUD() {
   const lives = useGameStore((s) => s.lives);
   const level = useGameStore((s) => s.level);
   const soundEnabled = useGameStore((s) => s.soundEnabled);
-  const wordsRemaining = useGameStore((s) => s.wordsRemaining);
   const activePowerUps = useGameStore((s) => s.activePowerUps);
   const gameSpeed = useGameStore((s) => s.gameSpeed);
   const setGameSpeed = useGameStore((s) => s.setGameSpeed);
   const combo = useGameStore((s) => s.combo);
   const highScore = useGameStore((s) => s.highScore);
+  const cvUnlocked = useGameStore((s) => s.cvUnlocked);
 
   const speeds = [0.5, 1, 1.5, 2];
   const hearts = '\u2665'.repeat(lives) + '\u2661'.repeat(Math.max(0, 3 - lives));
@@ -19,7 +19,6 @@ export function HUD() {
   return (
     <div className={styles.hud}>
       <div className={styles.hudTop}>
-        <h1 className={styles.title}>STACK BREAKER</h1>
         <div className={styles.stats}>
           <span className={styles.stat}>
             SCORE <span className={styles.statValue}>{String(score).padStart(5, '0')}</span>
@@ -33,8 +32,33 @@ export function HUD() {
           <span className={styles.stat}>
             LEVEL <span className={styles.statValue}>{String(level).padStart(2, '0')}</span>
           </span>
+          {combo > 1 && (
+            <span className={styles.combo}>x{combo}</span>
+          )}
+          {activePowerUps.length > 0 && (
+            <span className={styles.powerUps}>{activePowerUps.join(' | ')}</span>
+          )}
         </div>
+
         <div className={styles.controls}>
+          <div className={styles.cvGroup}>
+            {cvUnlocked ? (
+              <a href="/resume.pdf" download className={styles.cvBtn}>
+                DOWNLOAD CV
+              </a>
+            ) : (
+              <span className={styles.cvBtnLocked}>
+                CV LOCKED &mdash; complete level 1
+              </span>
+            )}
+            <a
+              href="/resume.pdf"
+              download
+              className={styles.cvRush}
+            >
+              i'm in a hurry
+            </a>
+          </div>
           <div className={styles.speedGroup}>
             {speeds.map((s) => (
               <button
@@ -52,21 +76,6 @@ export function HUD() {
           >
             SND {soundEnabled ? 'ON' : 'OFF'}
           </button>
-        </div>
-      </div>
-      <div className={styles.hudBottom}>
-        <span className={styles.info}>
-          {wordsRemaining} words remain. Break the stack!
-        </span>
-        <div className={styles.hudBottomRight}>
-          {combo > 1 && (
-            <span className={styles.combo}>COMBO x{combo}</span>
-          )}
-          {activePowerUps.length > 0 && (
-            <span className={styles.powerUps}>
-              {activePowerUps.join('  |  ')}
-            </span>
-          )}
         </div>
       </div>
     </div>

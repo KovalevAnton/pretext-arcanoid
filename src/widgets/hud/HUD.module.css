@@ -6,7 +6,7 @@
   background: #060a10;
   border: 2px solid rgba(80, 140, 180, 0.3);
   border-radius: 6px 6px 0 0;
-  padding: 12px 20px;
+  padding: 10px 20px;
   box-sizing: border-box;
 }
 
@@ -14,24 +14,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-}
-
-.title {
-  font-family: 'Orbitron', monospace;
-  font-size: 22px;
-  font-weight: 900;
-  color: #e0ecf5;
-  letter-spacing: 3px;
-  margin: 0;
-  text-shadow: 0 0 8px rgba(100, 180, 220, 0.4);
 }
 
 .stats {
   display: flex;
-  gap: 24px;
-  font-size: 14px;
+  align-items: center;
+  gap: 20px;
+  font-size: 13px;
   letter-spacing: 1px;
 }
 
@@ -42,20 +33,90 @@
 .statValue {
   color: #e0ecf5;
   font-weight: bold;
-  margin-left: 6px;
+  margin-left: 4px;
 }
 
 .hearts {
   color: #ff6b6b;
-  font-size: 16px;
-  margin-left: 6px;
+  font-size: 15px;
+  margin-left: 4px;
   letter-spacing: 2px;
+}
+
+.combo {
+  color: #ffd93d;
+  font-weight: bold;
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px rgba(255, 217, 61, 0.4);
+}
+
+.powerUps {
+  color: #845ef7;
+  font-weight: bold;
+  letter-spacing: 1px;
 }
 
 .controls {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.cvGroup {
+  display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.cvBtn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  padding: 4px 14px;
+  background: rgba(100, 220, 140, 0.15);
+  color: #6bcb77;
+  border: 1px solid rgba(100, 220, 140, 0.5);
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-decoration: none;
+  transition: all 0.15s;
+  animation: cvPulse 2s ease-in-out infinite;
+}
+
+.cvBtn:hover {
+  background: rgba(100, 220, 140, 0.3);
+  color: #a0f0a0;
+  border-color: rgba(100, 220, 140, 0.8);
+}
+
+@keyframes cvPulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(100, 220, 140, 0.2); }
+  50% { box-shadow: 0 0 12px rgba(100, 220, 140, 0.4); }
+}
+
+.cvBtnLocked {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  padding: 4px 12px;
+  background: rgba(80, 140, 180, 0.08);
+  color: #4a6a80;
+  border: 1px solid rgba(80, 140, 180, 0.2);
+  letter-spacing: 1px;
+  cursor: default;
+}
+
+.cvRush {
+  font-size: 10px;
+  color: #4a6a80;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: color 0.15s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cvRush:hover {
+  color: #7a9ab5;
+  text-decoration: underline;
 }
 
 .speedGroup {
@@ -101,39 +162,4 @@
 .soundBtn:hover {
   background: rgba(80, 140, 180, 0.3);
   color: #e0ecf5;
-}
-
-.hudBottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.info {
-  font-size: 13px;
-  color: #6a8aa5;
-}
-
-.hudBottomRight {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.combo {
-  font-size: 13px;
-  color: #ffd93d;
-  font-weight: bold;
-  letter-spacing: 1px;
-  text-shadow: 0 0 6px rgba(255, 217, 61, 0.4);
-}
-
-.powerUps {
-  font-size: 13px;
-  color: #ffd93d;
-  font-weight: bold;
-  letter-spacing: 1px;
 }

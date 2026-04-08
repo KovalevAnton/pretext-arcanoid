@@ -43,7 +43,7 @@ export function HUD() {
         <div className={styles.controls}>
           <div className={styles.cvGroup}>
             {cvUnlocked ? (
-              <a href="/resume.pdf" download className={styles.cvBtn}>
+              <a href="/resume.pdf" download="ANTON_KOVALEV_FRONTEND.pdf" className={styles.cvBtn}>
                 DOWNLOAD CV
               </a>
             ) : (
@@ -53,7 +53,7 @@ export function HUD() {
             )}
             <a
               href="/resume.pdf"
-              download
+              download="ANTON_KOVALEV_FRONTEND.pdf"
               className={styles.cvRush}
             >
               i'm in a hurry

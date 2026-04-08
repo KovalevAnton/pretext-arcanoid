@@ -188,9 +188,9 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
 
 function buildTextWallCopy(): string {
   const phrases = [
-    'React TypeScript Next.js Zustand Vite hooks state props component render virtual DOM fiber reconciler lazy suspense memo ref effect context reducer',
-    'SWR cache mutation query GraphQL schema resolver subscription Cypress e2e testing coverage assertion Expo NativeWind responsive layout',
-    'Svelte store binding reactive signal Canvas animation frame requestAnimationFrame Web Audio API CSS modules Tailwind utility Redux middleware thunk',
+    'Anton Kovalev Senior Frontend Developer 9+ years React Next.js TypeScript Migrated React application to Next.js App Router Implemented translations for 50+ countries Developed caching system with SWR reducing server load by 35% Created reusable UI-kit components Optimized build time from 85 to 26 seconds',
+    'Launched MVP mobile app from scratch using React Native Expo Integrated Airtable API Implemented push notifications and authentication Kanban board with custom drag-and-drop infinite scrolling sorting filtering Custom file uploader with carousel deployed in 7+ applications Enhancing test coverage and onboarding',
+    'Optimized React interfaces with hooks Reduced delivery by 20% through e2e testing Decreased bundle size by 25% improved page load by 30% Boosted client engagement by 140% Reduced bug rate by 30% transitioning to TypeScript Educational platform with React Redux Team lead managing Scrum daily code reviews',
   ];
   return Array.from({ length: 80 }, (_, i) => phrases[i % phrases.length]!).join(' ');
 }

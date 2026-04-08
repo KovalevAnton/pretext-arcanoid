@@ -57,19 +57,19 @@ export const WORD_COLORS = [
 
 export const LEVEL_WORDS: string[][] = [
   [
-    'React', 'hooks', 'state', 'props', 'render',
-    'memo', 'lazy', 'effect', 'context', 'reducer', 'fiber', 'DOM',
-    'ref', 'key', 'Next.js', 'SSR',
+    'React', 'Next.js', 'TypeScript', 'Redux',
+    'Zustand', 'SWR', 'GraphQL', 'Cypress',
+    'ESLint', 'Prettier', 'Svelte', 'Vite',
   ],
   [
-    'TypeScript', 'types', 'interface', 'generic', 'enum', 'async',
-    'await', 'promise', 'Zustand', 'store', 'Vite', 'ESLint',
-    'SWR', 'cache', 'query', 'GraphQL',
+    'Expo', 'NativeWind', 'Scrum', 'React Query',
+    'next-intl', 'Airtable', 'JSDoc', 'Canvas',
+    'JavaScript', 'CSS', 'HTML', 'React Native',
   ],
   [
-    'Canvas', 'WebGL', 'animation', 'frame', 'pixel', 'shader',
-    'buffer', 'Audio', 'Cypress', 'testing', 'Expo', 'native',
-    'Svelte', 'signal', 'Redux', 'thunk',
+    'Web Audio', 'PHP', 'Git', 'REST',
+    'Node.js', 'Tailwind', 'Webpack', 'Figma',
+    'Jest', 'Docker', 'Storybook', 'SASS',
   ],
 ];
 

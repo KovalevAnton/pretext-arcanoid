@@ -138,7 +138,8 @@ export function useGame() {
       cleanupRef.onKeyUp = onKeyUp;
     });
 
-    const cleanupRef: Record<string, EventListener> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cleanupRef: Record<string, (e: any) => any> = {};
 
     return () => {
       cancelled = true;

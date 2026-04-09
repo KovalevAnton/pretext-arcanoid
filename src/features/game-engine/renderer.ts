@@ -1,16 +1,15 @@
 import type { GameEngine } from './engine';
 import type { Vector2 } from '@/shared/types';
+import { getT } from '@/shared/i18n';
 import {
   GAME_WIDTH,
   GAME_HEIGHT,
-  BORDER_WIDTH,
   TEXT_WALL_LINE_HEIGHT,
   TEXT_WALL_ALPHA,
   TEXT_WALL_COLORS,
   TEXT_WALL_MIN_SLOT,
   TEXT_WALL_BRICK_PAD,
   TEXT_WALL_PADDLE_PAD,
-  TEXT_WALL_REGION_PAD,
   BALL_WAKE_RADIUS,
   COMBO_DISPLAY_DURATION,
 } from '@/shared/config/constants';
@@ -146,10 +145,10 @@ function getTextWallSlots(
 // ── Text wall rendering ─────────────────────────────────────────────────
 
 function drawTextWall(ctx: CanvasRenderingContext2D, engine: GameEngine) {
-  const regionX = BORDER_WIDTH + TEXT_WALL_REGION_PAD;
-  const regionY = BORDER_WIDTH + TEXT_WALL_REGION_PAD;
-  const regionRight = GAME_WIDTH - BORDER_WIDTH - TEXT_WALL_REGION_PAD;
-  const regionBottom = GAME_HEIGHT - BORDER_WIDTH - TEXT_WALL_REGION_PAD;
+  const regionX = 0;
+  const regionY = 0;
+  const regionRight = GAME_WIDTH;
+  const regionBottom = GAME_HEIGHT;
 
   ctx.save();
   ctx.font = WALL_FONT;
@@ -181,7 +180,15 @@ function drawTextWall(ctx: CanvasRenderingContext2D, engine: GameEngine) {
         (Math.floor(lineTop / TEXT_WALL_LINE_HEIGHT) + si) % TEXT_WALL_COLORS.length
       ];
       ctx.fillStyle = color;
+
+      // Clip text to slot boundaries for clean edges on both sides
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(slot.left, lineTop, width, TEXT_WALL_LINE_HEIGHT);
+      ctx.clip();
       ctx.fillText(line.text, slot.left, lineTop);
+      ctx.restore();
+
       cursor = line.end;
     }
   }
@@ -251,9 +258,7 @@ export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   // ── Reflowing text wall ───────────────────────────────────────────────
   drawTextWall(ctx, engine);
 
-  // ── Border ────────────────────────────────────────────────────────────
-  drawBorder(ctx);
-  drawCorners(ctx);
+  // ── Border (removed dashed border + corners) ─────────────────────────
 
   // ── Target words (with intro animation) ───────────────────────────────
   for (let i = 0; i < words.length; i++) {
@@ -348,12 +353,13 @@ export function render(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.restore();
 
   // ── Overlays (outside shake) ──────────────────────────────────────────
+  const t = getT();
   if (engine.state.isGameOver) {
-    drawOverlay(ctx, 'GAME OVER', 'Press SPACE or tap to restart');
+    drawOverlay(ctx, t.gameOver, t.pressSpaceRestart);
   } else if (engine.state.isLevelComplete) {
-    drawOverlay(ctx, `LEVEL ${engine.state.level} COMPLETE`, 'Press SPACE or tap for next level');
+    drawOverlay(ctx, t.levelComplete(engine.state.level), t.pressSpaceNextLevel);
   } else if (!engine.state.isStarted) {
-    drawOverlay(ctx, '', 'Press UP / tap to launch the glyph');
+    drawOverlay(ctx, '', t.pressUpToLaunch);
   }
 }
 
@@ -413,53 +419,6 @@ function drawPaddle(ctx: CanvasRenderingContext2D, p: { x: number; y: number; wi
   ctx.restore();
 }
 
-function drawBorder(ctx: CanvasRenderingContext2D) {
-  ctx.save();
-  ctx.strokeStyle = 'rgba(80, 140, 180, 0.45)';
-  ctx.lineWidth = BORDER_WIDTH;
-  ctx.setLineDash([4, 4]);
-  ctx.strokeRect(BORDER_WIDTH / 2, BORDER_WIDTH / 2, GAME_WIDTH - BORDER_WIDTH, GAME_HEIGHT - BORDER_WIDTH);
-  ctx.setLineDash([]);
-  ctx.restore();
-}
-
-function drawCorners(ctx: CanvasRenderingContext2D) {
-  const size = 14;
-  const off = BORDER_WIDTH + 2;
-  ctx.save();
-  ctx.strokeStyle = 'rgba(80, 160, 200, 0.55)';
-  ctx.lineWidth = 2;
-
-  for (const [cx, cy, sx, sy] of [[off, off, 1, 1], [GAME_WIDTH - off, off, -1, 1], [off, GAME_HEIGHT - off, 1, -1], [GAME_WIDTH - off, GAME_HEIGHT - off, -1, -1]] as const) {
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + sy * size);
-    ctx.lineTo(cx, cy);
-    ctx.lineTo(cx + sx * size, cy);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = 'rgba(80, 160, 200, 0.2)';
-  ctx.lineWidth = 1;
-  for (let i = 80; i < GAME_WIDTH - 80; i += 100) {
-    drawCross(ctx, i, BORDER_WIDTH + 1, 3);
-    drawCross(ctx, i, GAME_HEIGHT - BORDER_WIDTH - 1, 3);
-  }
-  for (let i = 80; i < GAME_HEIGHT - 80; i += 100) {
-    drawCross(ctx, BORDER_WIDTH + 1, i, 3);
-    drawCross(ctx, GAME_WIDTH - BORDER_WIDTH - 1, i, 3);
-  }
-  ctx.restore();
-}
-
-function drawCross(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
-  ctx.beginPath();
-  ctx.moveTo(x - s, y);
-  ctx.lineTo(x + s, y);
-  ctx.moveTo(x, y - s);
-  ctx.lineTo(x, y + s);
-  ctx.stroke();
-}
-
 function drawOverlay(ctx: CanvasRenderingContext2D, title: string, subtitle: string) {
   ctx.save();
   ctx.fillStyle = 'rgba(4, 6, 9, 0.7)';
@@ -479,10 +438,10 @@ function drawOverlay(ctx: CanvasRenderingContext2D, title: string, subtitle: str
   ctx.textAlign = 'center';
   ctx.fillText(subtitle, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 18);
 
-  if (title === 'GAME OVER') {
+  if (title === getT().gameOver) {
     ctx.font = '12px "Share Tech Mono", monospace';
     ctx.fillStyle = 'rgba(122, 154, 181, 0.6)';
-    ctx.fillText('Built by Anton Kovalev', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 45);
+    ctx.fillText(getT().builtBy, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 45);
   }
   ctx.restore();
 }

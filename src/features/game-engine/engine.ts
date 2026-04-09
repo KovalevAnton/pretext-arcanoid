@@ -38,6 +38,7 @@ import {
 import { measureWidth } from '@/shared/lib/text';
 import { prepareWithSegments, type PreparedTextWithSegments } from '@chenglou/pretext';
 import * as sound from '@/shared/lib/sound';
+import { getT } from '@/shared/i18n';
 
 // ── Wake holes (temporary text wall gaps behind ball) ───────────────────
 
@@ -97,6 +98,7 @@ export interface GameEngine {
   wakeHoles: WakeHole[];
   backgroundGlyphs: BackgroundGlyph[];
   textWallPrepared: PreparedTextWithSegments;
+  textWallLocale: string;
   screenShake: { intensity: number; duration: number; elapsed: number };
   combo: number;
   comboTimer: number;
@@ -195,12 +197,8 @@ function layoutTargetWords(levelWords: string[]): TargetWord[] {
 // ── Text wall copy (prepared once) ──────────────────────────────────────
 
 function buildTextWallCopy(): string {
-  const phrases = [
-    'Anton Kovalev Senior Frontend Developer 9+ years React Next.js TypeScript Migrated React application to Next.js App Router Implemented translations for 50+ countries Developed caching system with SWR reducing server load by 35% Created reusable UI-kit components Optimized build time from 85 to 26 seconds',
-    'Launched MVP mobile app from scratch using React Native Expo Integrated Airtable API Implemented push notifications and authentication Kanban board with custom drag-and-drop infinite scrolling sorting filtering Custom file uploader with carousel deployed in 7+ applications Enhancing test coverage and onboarding',
-    'Optimized React interfaces with hooks Reduced delivery by 20% through e2e testing Decreased bundle size by 25% improved page load by 30% Boosted client engagement by 140% Reduced bug rate by 30% transitioning to TypeScript Educational platform with React Redux Team lead managing Scrum daily code reviews',
-  ];
-  return Array.from({ length: 80 }, (_, i) => phrases[i % phrases.length]!).join(' ');
+  const { textWallPhrases } = getT();
+  return Array.from({ length: 80 }, (_, i) => textWallPhrases[i % textWallPhrases.length]!).join(' ');
 }
 
 // ── Background glyphs ──────────────────────────────────────────────────
@@ -335,6 +333,7 @@ export function createEngine(): GameEngine {
     wakeHoles: [],
     backgroundGlyphs: createBackgroundGlyphs(),
     textWallPrepared: prepareWithSegments(buildTextWallCopy(), TEXT_WALL_FONT),
+    textWallLocale: localStorage.getItem('stackbreaker-locale') || 'en',
     screenShake: { intensity: 0, duration: 0, elapsed: 0 },
     combo: 0,
     comboTimer: 0,
@@ -420,6 +419,13 @@ function clampSpeed(vel: Vector2): Vector2 {
 // ── Main update ─────────────────────────────────────────────────────────
 
 export function update(engine: GameEngine, dt: number) {
+  // Rebuild text wall if locale changed
+  const currentLocale = localStorage.getItem('stackbreaker-locale') || 'en';
+  if (currentLocale !== engine.textWallLocale) {
+    engine.textWallPrepared = prepareWithSegments(buildTextWallCopy(), TEXT_WALL_FONT);
+    engine.textWallLocale = currentLocale;
+  }
+
   const dtSec = dt / 1000;
   updateBackgroundGlyphs(engine, dtSec);
   updateWakeHoles(engine, dtSec);
@@ -643,8 +649,9 @@ export function getWordsRemaining(engine: GameEngine): number {
 
 export function getActivePowerUps(engine: GameEngine): string[] {
   const active: string[] = [];
+  const t = getT();
   const n = engine.balls.filter((b) => b.isActive).length;
-  if (n > 1) active.push(`${n} BALLS`);
-  if (engine.paddle.isWidened) active.push(`WIDEN ${Math.ceil(engine.paddle.widenTimer / 1000)}s`);
+  if (n > 1) active.push(t.balls(n));
+  if (engine.paddle.isWidened) active.push(t.widen(Math.ceil(engine.paddle.widenTimer / 1000)));
   return active;
 }

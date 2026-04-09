@@ -13,6 +13,8 @@
   "license": "ISC",
   "dependencies": {
     "@chenglou/pretext": "^0.0.4",
+    "@supabase/supabase-js": "^2.102.1",
+    "@vercel/analytics": "^2.0.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "zustand": "^5.0.12"

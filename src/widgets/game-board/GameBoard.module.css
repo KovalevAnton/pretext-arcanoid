@@ -28,7 +28,7 @@
       rgba(0, 0, 0, 0.45) 100%
     );
   animation: crtFlicker 4s ease-in-out infinite;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 8px 8px;
 }
 
 @keyframes crtFlicker {
@@ -41,9 +41,9 @@
   height: 100%;
   display: block;
   cursor: none;
-  border: 2px solid rgba(80, 140, 180, 0.4);
+  border: 3px solid rgba(80, 140, 180, 0.45);
   border-top: none;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 8px 8px;
   box-sizing: border-box;
 }
 

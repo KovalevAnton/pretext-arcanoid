@@ -4,10 +4,11 @@
   font-family: 'Share Tech Mono', monospace;
   color: #b4c8dc;
   background: #060a10;
-  border: 2px solid rgba(80, 140, 180, 0.3);
-  border-radius: 6px 6px 0 0;
+  border: 3px solid rgba(80, 140, 180, 0.45);
+  border-radius: 8px 8px 0 0;
   padding: 10px 20px;
   box-sizing: border-box;
+  box-shadow: inset 0 0 20px rgba(80, 140, 180, 0.06), 0 0 12px rgba(80, 140, 180, 0.08);
 }
 
 .hudTop {
@@ -59,7 +60,7 @@
 .controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .cvGroup {
@@ -74,7 +75,7 @@
   padding: 4px 14px;
   background: rgba(100, 220, 140, 0.15);
   color: #6bcb77;
-  border: 1px solid rgba(100, 220, 140, 0.5);
+  border: 2px solid rgba(100, 220, 140, 0.5);
   cursor: pointer;
   letter-spacing: 1px;
   text-decoration: none;
@@ -98,7 +99,7 @@
   font-size: 11px;
   padding: 4px 12px;
   background: rgba(80, 140, 180, 0.08);
-  border: 1px solid rgba(80, 140, 180, 0.2);
+  border: 2px solid rgba(80, 140, 180, 0.2);
   letter-spacing: 1px;
   cursor: default;
 }
@@ -118,49 +119,103 @@
   text-decoration: underline;
 }
 
-.speedGroup {
+/* ── Unified toolbar ─────────────────────────────────────────────────── */
+
+.toolbar {
   display: flex;
-  gap: 2px;
+  align-items: center;
+  border: 2px solid rgba(80, 140, 180, 0.3);
+  background: rgba(80, 140, 180, 0.04);
 }
 
-.speedBtn {
+.dropWrap {
+  position: relative;
+}
+
+.dropMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  background: #0a1018;
+  border: 2px solid rgba(80, 140, 180, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  z-index: 60;
+  min-width: 48px;
+}
+
+.dropItem {
   font-family: 'Share Tech Mono', monospace;
   font-size: 12px;
-  padding: 4px 8px;
-  background: rgba(80, 140, 180, 0.1);
+  padding: 6px 12px;
+  background: transparent;
   color: #5a7a95;
-  border: 1px solid rgba(80, 140, 180, 0.25);
+  border: none;
   cursor: pointer;
   letter-spacing: 1px;
-  transition: all 0.15s;
+  transition: all 0.1s;
+  text-align: center;
+  white-space: nowrap;
 }
 
-.speedBtn:hover {
-  background: rgba(80, 140, 180, 0.25);
+.dropItem:hover {
+  background: rgba(80, 140, 180, 0.2);
   color: #b4c8dc;
 }
 
-.speedBtnActive {
-  background: rgba(80, 140, 180, 0.35);
+.dropItemActive {
   color: #e0ecf5;
-  border-color: rgba(80, 140, 180, 0.6);
+  background: rgba(80, 140, 180, 0.25);
 }
 
-.soundBtn {
+.tBtn {
   font-family: 'Share Tech Mono', monospace;
   font-size: 12px;
-  padding: 4px 12px;
-  background: rgba(80, 140, 180, 0.15);
-  color: #7a9ab5;
-  border: 1px solid rgba(80, 140, 180, 0.4);
+  padding: 5px 10px;
+  background: transparent;
+  color: #5a7a95;
+  border: none;
   cursor: pointer;
   letter-spacing: 1px;
   transition: all 0.15s;
+  line-height: 1;
 }
 
-.soundBtn:hover {
+.tBtn:hover {
+  background: rgba(80, 140, 180, 0.2);
+  color: #b4c8dc;
+}
+
+.tBtnActive {
   background: rgba(80, 140, 180, 0.3);
   color: #e0ecf5;
+}
+
+.sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(80, 140, 180, 0.2);
+  flex-shrink: 0;
+}
+
+.topBtn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  padding: 5px 10px;
+  background: transparent;
+  color: #ffd93d;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.topBtn:hover {
+  background: rgba(255, 217, 61, 0.12);
+  color: #ffe680;
 }
 
 /* ── Mobile ──────────────────────────────────────────────────────────── */
@@ -205,14 +260,9 @@
     font-size: 9px;
   }
 
-  .speedBtn {
-    font-size: 11px;
-    padding: 3px 6px;
-  }
-
-  .soundBtn {
-    font-size: 11px;
-    padding: 3px 8px;
+  .tBtn, .topBtn {
+    font-size: 10px;
+    padding: 4px 6px;
   }
 }
 
@@ -227,13 +277,9 @@
     font-size: 12px;
   }
 
-  .speedGroup {
-    gap: 1px;
-  }
-
-  .speedBtn {
-    font-size: 10px;
-    padding: 2px 5px;
+  .tBtn, .topBtn {
+    font-size: 9px;
+    padding: 3px 5px;
   }
 }
 
@@ -275,13 +321,8 @@
     display: none;
   }
 
-  .speedBtn {
+  .tBtn, .topBtn {
     font-size: 9px;
-    padding: 2px 4px;
-  }
-
-  .soundBtn {
-    font-size: 9px;
-    padding: 2px 6px;
+    padding: 2px 5px;
   }
 }

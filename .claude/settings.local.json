@@ -22,19 +22,7 @@
       "Bash(git clean:*)",
       "Bash(git rebase:*)",
       "Bash(git stash:*)",
-      "Bash(git commit:*)",
-      "Bash(gh auth:*)",
-      "Bash(gh repo:*)",
-      "Bash(git push:*)",
-      "Bash(git filter-branch:*)",
-      "Bash(FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f --msg-filter 'head -1' -- --all)",
-      "mcp__plugin_supabase_supabase__list_projects",
-      "mcp__plugin_supabase_supabase__list_organizations",
-      "mcp__plugin_supabase_supabase__apply_migration",
-      "mcp__plugin_supabase_supabase__get_project_url",
-      "mcp__plugin_supabase_supabase__get_publishable_keys",
-      "mcp__claude_ai_Vercel__deploy_to_vercel",
-      "Bash(npx vercel:*)"
+      "Bash(git commit:*)"
     ]
   }
 }
